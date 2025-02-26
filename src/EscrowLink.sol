@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
 
 contract EscrowLink {
     struct Escrow {
-        address payable payer;
+        address payer;
         address payable payee;
         uint256 amount;
         bool isPaid;
@@ -46,22 +46,16 @@ contract EscrowLink {
         require(!escrows[_escrow_id].isPaid, "Escrow has been resolved");
         _;
     }
-
-    modifier OnlyOwner() {
-        require(msg.sender == contractOwner, "Only contract owner can call this function");
-        _;
-    }
     
     /** all escrow events */
     event PayeeHasJoined(uint16 escrow_id);
-    event EscrowCompleted(uint16 escrow_id);
 
     function createEscrow(address payable _payee, uint256 _amount, string memory _terms) public payable returns (uint16) {
         require(_amount > 0, "Please enter a valid amount");
         require(msg.value == _amount, "Amount sent does not match the specified amount");
 
         uint16 escrow_id = uint16(block.timestamp % 65536);
-        escrows[escrow_id] = Escrow(payable(msg.sender), _payee, _amount, false, _terms, escrow_id);
+        escrows[escrow_id] = Escrow(msg.sender, _payee, _amount, false, _terms, escrow_id);
 
         return escrow_id;
     }
@@ -73,28 +67,8 @@ contract EscrowLink {
     }
 
     function releaseFunds(uint16 _escrow_id) public OnlyPayer(_escrow_id) {
-        checkContractBalance(_escrow_id);
-        escrows[_escrow_id].payee.transfer(escrows[_escrow_id].amount);
-        escrows[_escrow_id].isPaid = true;
-        emit EscrowCompleted(_escrow_id);
-    }
-
-    function approve(uint16 _escrow_id) private OnlyOwner() {
-        checkContractBalance(_escrow_id);
-        escrows[_escrow_id].payee.transfer(escrows[_escrow_id].amount);
-        escrows[_escrow_id].isPaid = true;
-        emit EscrowCompleted(_escrow_id);
-    }
-
-    function reject(uint16 _escrow_id) private OnlyOwner() {
-        checkContractBalance(_escrow_id);
-        escrows[_escrow_id].payer.transfer(escrows[_escrow_id].amount);
-        escrows[_escrow_id].isPaid = true;
-        emit EscrowCompleted(_escrow_id);
-    }
-
-    function checkContractBalance(uint16 _escrow_id) internal view {
         require(address(this).balance >= escrows[_escrow_id].amount, "Insufficient balance in contract");
+        escrows[_escrow_id].payee.transfer(escrows[_escrow_id].amount);
     }
    
    
